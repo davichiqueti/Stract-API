@@ -1,5 +1,7 @@
 from flask import Flask, Response, jsonify
 from utils.stract_api_client import StractAPIClient
+import csv
+import io
 
 
 app = Flask(__name__)
@@ -10,14 +12,21 @@ def generate_csv_response(data: list):
     """
     Gera uma resposta de texto em formato CSV válido.
 
-    Utiliza processamento de strings para evitar a criação de arquivos e a latência de I/O.
+    A resposta é retornada com o cabeçalho 'Content-Type' definindo o contéudo como texto plano.
+    Garantindo que o conteúdo CSV seja exibido como texto na página.
     """
     if not data or not isinstance(data, list):
         return Response("", content_type="text/plain")
-    headers = data[0].keys()
-    csv_data = ",".join(headers) + "\n"
-    csv_data += "\n".join([",".join(str(row.get(h))for h in headers) for row in data])
-    return Response(csv_data, content_type="text/plain")
+    # Usando IO para trabalhar com o CSV em mémoria.
+    # Tirando necessidade de criar um arquivo em mémoria física, que nesse caso não é necessário
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
+    csv_data = output.getvalue()
+    output.close()
+    # Alterar para "text/csv" para 
+    return Response(csv_data, content_type="text/plain; charset=utf-8")
 
 
 @app.route("/")
