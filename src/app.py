@@ -1,5 +1,5 @@
 from flask import Flask, Response, jsonify
-from utils.stract_api_client import StractAPIClient
+from modules.stract_api_client import StractAPIClient
 import csv
 import io
 
