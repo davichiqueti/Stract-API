@@ -109,6 +109,7 @@ def general_ads():
     platforms = client.get_platforms()
     for platform in platforms:
         platform_id = platform["value"]
+        platform_name = platform["text"]
         accounts = client.get_platform_accounts(platform_id)
         platform_fields = client.get_platform_fields(platform_id)
         for account in accounts:
@@ -120,12 +121,12 @@ def general_ads():
             )
             for insight in account_insights:
                 insight_data = {
-                    "Platform": platform["text"],
+                    "Platform": platform_name,
                     "Account Name": account["name"]
                 }
                 for field in platform_fields:
                     insight_data[field["text"]] = insight.get(field["value"], None)
-                if platform == "ga4":
+                if platform_id == "ga4":
                     # Gerando a coluna de custo por click para o google ads
                     insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
                 all_platforms_data.append(insight_data)
@@ -137,10 +138,9 @@ def general_platforms_ads_summarize():
     all_platforms_data = list()
     platforms = client.get_platforms()
     for platform in platforms:
-        account_ads_data = {
-            "Platform": platform["text"],
-        }
         platform_id = platform["value"]
+        platform_name = platform["text"]
+        account_ads_data = {"Platform": platform_name}
         accounts = client.get_platform_accounts(platform_id)
         platform_fields = client.get_platform_fields(platform_id)
         for account in accounts:
@@ -159,7 +159,7 @@ def general_platforms_ads_summarize():
                         account_ads_data[field["text"]] += insight_value
                     else:
                         account_ads_data[field["text"]] = insight_value
-        if platform == "ga4":
+        if platform_id == "ga4":
             # Gerando a coluna de custo por click para o google ads
             account_ads_data["Cost Per Click"] = round((account_ads_data["Spend"] / account_ads_data["Clicks"]), 2)
         all_platforms_data.append(account_ads_data)
