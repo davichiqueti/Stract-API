@@ -8,9 +8,9 @@ app = Flask(__name__)
 client = StractAPIClient()
 
 
-def generate_csv_response(data: list):
+def generate_csv_response(data: list[dict]):
     """
-    Gera uma resposta de texto em formato CSV válido.
+    Gera uma resposta de texto em formato CSV a partir de uma lista de dicionários
 
     A resposta é retornada com o cabeçalho 'Content-Type' definindo o contéudo como texto plano.
     Garantindo que o conteúdo CSV seja exibido como texto na página.
@@ -61,6 +61,9 @@ def platform_ads(platform):
             }
             for field in platform_fields:
                 insight_data[field["text"]] = insight[field["value"]]
+            if platform == "ga4":
+                # Gerando a coluna de custo por click para o google ads
+                insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
             ads_data.append(insight_data)
     return generate_csv_response(ads_data)
 
@@ -93,6 +96,9 @@ def platform_ads_summarize(platform):
                     account_ads_data[field["text"]] += insight_value
                 else:
                     account_ads_data[field["text"]] = insight_value
+        if platform == "ga4":
+            # Gerando a coluna de custo por click para o google ads
+            account_ads_data["Cost Per Click"] = round((account_ads_data["Spend"] / account_ads_data["Clicks"]), 2)
         all_accounts_data.append(account_ads_data)
     return generate_csv_response(all_accounts_data)
 
@@ -119,6 +125,9 @@ def general_ads():
                 }
                 for field in platform_fields:
                     insight_data[field["text"]] = insight.get(field["value"], None)
+                if platform == "ga4":
+                    # Gerando a coluna de custo por click para o google ads
+                    insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
                 all_platforms_data.append(insight_data)
     return generate_csv_response(all_platforms_data)
 
@@ -150,5 +159,8 @@ def general_platforms_ads_summarize():
                         account_ads_data[field["text"]] += insight_value
                     else:
                         account_ads_data[field["text"]] = insight_value
+        if platform == "ga4":
+            # Gerando a coluna de custo por click para o google ads
+            account_ads_data["Cost Per Click"] = round((account_ads_data["Spend"] / account_ads_data["Clicks"]), 2)
         all_platforms_data.append(account_ads_data)
     return generate_csv_response(all_platforms_data)
