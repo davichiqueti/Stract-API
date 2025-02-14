@@ -1,10 +1,14 @@
 # stract-challenge
 
-Essa é uma etapa de um processo seletivo para desenvolvedor Python na Stract. Criando integrações com uma API da empresa e gerando relatórios em formato CSV com dados em tempo real. As instruções do teste estão aqui: [Arquivo de Instruções](/instructions.txt)
+Essa é uma etapa de um processo seletivo para desenvolvedor Python na Stract. Criando integrações com uma API da empresa e gerando relatórios em formato CSV com dados em tempo real. [Veja as instruções aqui](/instructions.txt)
 
 Desde 2023, desenvolvo ferramentas profissionais para integração, extração e processamento de dados da web, utilizando desde integração com APIs até Web Scraping de páginas HTML diariamente.
 
 Fiquei contente pela oportunidade de realizar esse teste. Acredito que eu poderia agregar muito à Stract e gostaria de fazer parte de sua equipe.
+
+## Aplicação Publicada
+
+[stract-api.onrender.com](https://stract-api.onrender.com/)
 
 ## Rodando a Aplicação
 
