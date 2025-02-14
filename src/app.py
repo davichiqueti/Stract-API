@@ -42,11 +42,19 @@ def home():
 def platform_ads(platform):
     if platform == "geral":
         return general_ads()
-    ads_data = list()
-    accounts = client.get_platform_accounts(platform)
-    if not accounts:
+    # Checagem se a plataforma existe. Também auxilia a encontrar o nome para busca por ID e vice e versa
+    # Permitindo ambos os tipos como um parametro válido
+    plataforms = client.get_platforms()
+    for existent_platform in plataforms:
+        platform_id = existent_platform["value"]
+        platform_name = existent_platform["text"]
+        if platform in [platform_id, platform_name]:
+            break
+    else:
         return Response("Platform not found", status=404, content_type="text/plain")
-    platform_fields = client.get_platform_fields(platform)
+    ads_data = list()
+    accounts = client.get_platform_accounts(platform_id)
+    platform_fields = client.get_platform_fields(platform_id)
     for account in accounts:
         account_insights = client.get_platform_account_insights(
             platform,
@@ -70,6 +78,18 @@ def platform_ads(platform):
 
 @app.route("/<platform>/resumo")
 def platform_ads_summarize(platform):
+    # Checagem se a plataforma existe. Também auxilia a encontrar o nome para busca por ID e vice e versa
+    # Permitindo ambos os tipos como um parametro válido
+    plataforms = client.get_platforms()
+    for existent_platform in plataforms:
+        platform_id = existent_platform["value"]
+        platform_name = existent_platform["text"]
+        if platform in [platform_id, platform_name]:
+            break
+    else:
+        return Response("Platform not found", status=404, content_type="text/plain")
+    accounts = client.get_platform_accounts(platform_id)
+    platform_fields = client.get_platform_fields(platform_id)
     all_accounts_data = list()
     accounts = client.get_platform_accounts(platform)
     if not accounts:
