@@ -1,32 +1,78 @@
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, abort
 from modules.stract_api_client import StractAPIClient
-import csv
-import io
+import pandas as pd
 
 
 app = Flask(__name__)
 client = StractAPIClient()
 
 
-def generate_csv_response(data: list[dict]):
+def generate_csv_response(data: pd.DataFrame):
     """
-    Gera uma resposta de texto em formato CSV a partir de uma lista de dicionários
+    Recebe um Dataframe e o resposta em uma resposta no formato CSV.
 
-    A resposta é retornada com o cabeçalho 'Content-Type' definindo o contéudo como texto plano.
-    Garantindo que o conteúdo CSV seja exibido como texto na página.
+    Função feita para unificar o processamento da resposta.
     """
-    if not data or not isinstance(data, list):
-        return Response("", content_type="text/plain")
-    # Usando IO para trabalhar com o CSV em mémoria.
-    # Tirando necessidade de criar um arquivo em mémoria física, que nesse caso não é necessário
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=data[0].keys())
-    writer.writeheader()
-    writer.writerows(data)
-    csv_data = output.getvalue()
-    output.close()
-    # Alterar para "text/csv" para 
-    return Response(csv_data, content_type="text/plain; charset=utf-8")
+    # Substituindo colunas com representação vazia do pandas por uma string vazia
+    data.fillna('')
+    return Response(
+        data.to_csv(index=False),
+        content_type="text/csv; charset=utf-8"
+    )
+
+
+def get_platform_insights(platform_id: str, platform_name: str) -> pd.DataFrame:
+    """
+    Acessa todos os recursos com a ordem necessária para extrair todos os insights de uma plataforma
+    
+    Retornando os insights como um Dataframe Pandas
+    """
+    # Getting accounts
+    accounts = client.get_platform_accounts(platform_id)
+    platform_fields = client.get_platform_fields(platform_id)
+    all_insights = []
+    # Processing insights
+    for account in accounts:
+        account_insights = client.get_platform_account_insights(
+            platform_id=platform_id,
+            account_id=account["id"],
+            user_token=account["token"],
+            fields=(field["value"] for field in platform_fields)
+        )
+        for insight in account_insights:
+            insight_data = {
+                "Platform": platform_name,
+                "Account": account["name"],
+                "Account ID": account["id"]
+            }
+            for field in platform_fields:
+                insight_data[field["text"]] = insight.get(field["value"], None)
+            if platform_id == "ga4":
+                # Gerando a coluna de custo por click para o google ads
+                insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
+            all_insights.append(insight_data)
+    # Returning result as Pandas dataframe
+    return pd.DataFrame(all_insights)
+
+
+def validate_platform(platform) -> dict:
+    """
+    Checa se uma plataforma é válida e carrega suas informações caso encontrada.
+
+    Utilizada em requisições com parametro de plataforma. Permite a checagem por nome ou ID.
+    Aborta a requisição retornando uma resposta com status 404 caso a plataforma não seja encontrada
+    """
+    plataforms = client.get_platforms()
+    for existent_platform in plataforms:
+        platform_id = existent_platform["value"]
+        platform_name = existent_platform["text"]
+        if platform in [platform_id, platform_name]:
+            return {
+                "id": platform_id,
+                "name": platform_name
+            }
+    # Abortando a operação e retornando um código de erro para plataforma não encontrada
+    abort(code=404, description="Platform not found")
 
 
 @app.route("/")
@@ -42,145 +88,51 @@ def home():
 def platform_ads(platform):
     if platform == "geral":
         return general_ads()
-    # Checagem se a plataforma existe. Também auxilia a encontrar o nome para busca por ID e vice e versa
-    # Permitindo ambos os tipos como um parametro válido
-    plataforms = client.get_platforms()
-    for existent_platform in plataforms:
-        platform_id = existent_platform["value"]
-        platform_name = existent_platform["text"]
-        if platform in [platform_id, platform_name]:
-            break
-    else:
-        return Response("Platform not found", status=404, content_type="text/plain")
-    ads_data = list()
-    accounts = client.get_platform_accounts(platform_id)
-    platform_fields = client.get_platform_fields(platform_id)
-    for account in accounts:
-        account_insights = client.get_platform_account_insights(
-            platform,
-            account["id"],
-            account["token"],
-            fields=(field["value"] for field in platform_fields)
-        )
-        for insight in account_insights:
-            insight_data = {
-                "Platform": platform,
-                "Account Name": account["name"]
-            }
-            for field in platform_fields:
-                insight_data[field["text"]] = insight[field["value"]]
-            if platform == "ga4":
-                # Gerando a coluna de custo por click para o google ads
-                insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
-            ads_data.append(insight_data)
-    return generate_csv_response(ads_data)
+    plataform_info = validate_platform(platform)
+    insights = get_platform_insights(plataform_info["id"], plataform_info["name"])
+    return generate_csv_response(insights)
 
 
 @app.route("/<platform>/resumo")
 def platform_ads_summarize(platform):
     # Checagem se a plataforma existe. Também auxilia a encontrar o nome para busca por ID e vice e versa
     # Permitindo ambos os tipos como um parametro válido
-    plataforms = client.get_platforms()
-    for existent_platform in plataforms:
-        platform_id = existent_platform["value"]
-        platform_name = existent_platform["text"]
-        if platform in [platform_id, platform_name]:
-            break
-    else:
-        return Response("Platform not found", status=404, content_type="text/plain")
-    accounts = client.get_platform_accounts(platform_id)
-    platform_fields = client.get_platform_fields(platform_id)
-    all_accounts_data = list()
-    accounts = client.get_platform_accounts(platform)
-    if not accounts:
-        return Response("Platform not found", status=404, content_type="text/plain")
-    platform_fields = client.get_platform_fields(platform)
-    for account in accounts:
-        account_ads_data = {
-            "Platform": platform,
-            "Account Name": account["name"],
-            "Account ID": account["id"]
-        }
-        account_insights = client.get_platform_account_insights(
-            platform,
-            account["id"],
-            account["token"],
-            fields=(field["value"] for field in platform_fields)
-        )
-        for insight in account_insights:
-            for field in platform_fields:
-                insight_value = insight[field["value"]]
-                if not isinstance(insight_value, (int, float)):
-                    continue
-                if field["text"] in account_ads_data:
-                    account_ads_data[field["text"]] += insight_value
-                else:
-                    account_ads_data[field["text"]] = insight_value
-        if platform == "ga4":
-            # Gerando a coluna de custo por click para o google ads
-            account_ads_data["Cost Per Click"] = round((account_ads_data["Spend"] / account_ads_data["Clicks"]), 2)
-        all_accounts_data.append(account_ads_data)
-    return generate_csv_response(all_accounts_data)
+    plataform_info = validate_platform(platform)
+    insights = get_platform_insights(plataform_info["id"], plataform_info["name"])
+    # Agrupando insights por ID da conta. Já que o nome da conta não é único
+    grouped_insights = insights.groupby("Account ID").sum(numeric_only=True).reset_index()
+    grouped_insights.insert(0, "Platform", insights["Platform"])
+    grouped_insights.insert(1, "Account", insights["Account"])
+    for col in insights.select_dtypes(include=['object']).columns:
+        if col not in grouped_insights.columns:
+            grouped_insights[col] = None
+    return generate_csv_response(grouped_insights)
 
 
 @app.route("/geral")
 def general_ads():
-    all_platforms_data = list()
     platforms = client.get_platforms()
+    insights = pd.DataFrame()
     for platform in platforms:
         platform_id = platform["value"]
         platform_name = platform["text"]
-        accounts = client.get_platform_accounts(platform_id)
-        platform_fields = client.get_platform_fields(platform_id)
-        for account in accounts:
-            account_insights = client.get_platform_account_insights(
-                platform_id,
-                account["id"],
-                account["token"],
-                fields=(field["value"] for field in platform_fields)
-            )
-            for insight in account_insights:
-                insight_data = {
-                    "Platform": platform_name,
-                    "Account Name": account["name"]
-                }
-                for field in platform_fields:
-                    insight_data[field["text"]] = insight.get(field["value"], None)
-                if platform_id == "ga4":
-                    # Gerando a coluna de custo por click para o google ads
-                    insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
-                all_platforms_data.append(insight_data)
-    return generate_csv_response(all_platforms_data)
+        platform_insights = get_platform_insights(platform_id, platform_name)
+        insights = pd.concat([insights, platform_insights], axis=0)
+    return generate_csv_response(insights)
 
 
 @app.route("/geral/resumo")
 def general_platforms_ads_summarize():
-    all_platforms_data = list()
     platforms = client.get_platforms()
+    insights = pd.DataFrame()
     for platform in platforms:
         platform_id = platform["value"]
         platform_name = platform["text"]
-        account_ads_data = {"Platform": platform_name}
-        accounts = client.get_platform_accounts(platform_id)
-        platform_fields = client.get_platform_fields(platform_id)
-        for account in accounts:
-            account_insights = client.get_platform_account_insights(
-                platform_id,
-                account["id"],
-                account["token"],
-                fields=(field["value"] for field in platform_fields)
-            )
-            for insight in account_insights:
-                for field in platform_fields:
-                    insight_value = insight[field["value"]]
-                    if not isinstance(insight_value, (int, float)):
-                        continue
-                    if field["text"] in account_ads_data:
-                        account_ads_data[field["text"]] += insight_value
-                    else:
-                        account_ads_data[field["text"]] = insight_value
-        if platform_id == "ga4":
-            # Gerando a coluna de custo por click para o google ads
-            account_ads_data["Cost Per Click"] = round((account_ads_data["Spend"] / account_ads_data["Clicks"]), 2)
-        all_platforms_data.append(account_ads_data)
-    return generate_csv_response(all_platforms_data)
+        platform_insights = get_platform_insights(platform_id, platform_name)
+        insights = pd.concat([insights, platform_insights], axis=0)
+    # Agrupando por plataforma
+    grouped_insights = insights.groupby("Platform").sum(numeric_only=True).reset_index()
+    for col in insights.select_dtypes(include=['object']).columns:
+        if col not in grouped_insights.columns:
+            grouped_insights[col] = None
+    return generate_csv_response(grouped_insights)
