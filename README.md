@@ -8,11 +8,9 @@ Fiquei contente pela oportunidade de realizar esse teste. Acredito que eu poderi
 
 ## Aplicação Publicada
 
-O projeto está publicado utilizando os mesmos comandos acima para fazer build e deploy no Render. E pode ser acessado pelo link abaixo
+O projeto está publicado em uma máquina na Render, onde o build e o deploy são realizados automaticamente a cada commit na branch "main". A API pode ser acessada através do seguinte link: [stract-api.onrender.com](https://stract-api.onrender.com/)
 
-[stract-api.onrender.com](https://stract-api.onrender.com/)
-
-A primeira requisição pode ser um pouco mais lenta para encontrar o servidor, mas os tempos de resposta tendem a ser menores nas requisições subsequentes. Meu palpite é que a máquina hospedada na Render tenha uma latência menor até a máquina da Stract, onde os recursos são acessados.
+A primeira requisição pode demorar um pouco mais para encontrar o servidor, mas os tempos de resposta tendem a ser menores nas requisições subsequentes. Acredito que a máquina hospedada na Render tenha uma latência menor em relação à máquina da Stract, de onde os recursos são acessados, fazendo o processamento de cada requisição ser mais rápido.
 
 ## Rodando a Aplicação Localmente
 
@@ -41,6 +39,6 @@ flask run --port=80     # Porta padrão do protocolo HTTP
 
 ## API Client
 
-Para facilitar o uso de recursos da API da Stract, criei um Client que abstrai a integração e provê métodos para acessar os recursos de forma mais simples. Encapsula a lógica para autorização e realização de requisições, além de lidar automaticamente com processos de paginação para acesso aos recursos.
+Para facilitar o uso dos recursos da API da Stract, criei um Client que abstrai a integração e fornece métodos simplificados para acessar esses recursos. Ele encapsula a lógica de autorização e realização das requisições, além de lidar automaticamente com a paginação para acesso aos dados.
 
 Confira a implementação aqui: [Stract API Client Class](/src/modules/stract_api_client.py)
