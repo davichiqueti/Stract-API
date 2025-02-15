@@ -25,15 +25,18 @@ def generate_csv_response(data: pd.DataFrame):
 
 def get_platform_insights(platform_id: str, platform_name: str) -> pd.DataFrame:
     """
-    Acessa todos os recursos com a ordem necessária para extrair todos os insights de uma plataforma
-    
+    Acessa todos os recursos com a ordem necessária para extrair todos os insights de uma plataforma.
+
+    Utiliza o client para abstrair a obtenção dos recursos. Focando exclusivamente em seu processamento.
+
     Retornando os insights como um Dataframe Pandas
     """
-    # Getting accounts
+    # Selecionando as contas da plataforma
     accounts = client.get_platform_accounts(platform_id)
+    # Selecionando seus campos
     platform_fields = client.get_platform_fields(platform_id)
     all_insights = []
-    # Processing insights
+    # Processando cada insight
     for account in accounts:
         account_insights = client.get_platform_account_insights(
             platform_id=platform_id,
@@ -53,7 +56,7 @@ def get_platform_insights(platform_id: str, platform_name: str) -> pd.DataFrame:
                 # Gerando a coluna de custo por click para o google ads
                 insight_data["Cost Per Click"] = round((insight_data["Spend"] / insight_data["Clicks"]), 2)
             all_insights.append(insight_data)
-    # Returning result as Pandas dataframe
+    # Retornando o resultado dos insights como um Dataframe Pandas
     return pd.DataFrame(all_insights)
 
 
@@ -102,12 +105,20 @@ def platform_ads_summarize(platform):
     plataform_info = validate_platform(platform)
     insights = get_platform_insights(plataform_info["id"], plataform_info["name"])
     # Agrupando insights por ID da conta. Já que o nome da conta não é único
-    grouped_insights = insights.groupby("Account ID").sum(numeric_only=True).reset_index()
-    grouped_insights.insert(0, "Platform", insights["Platform"])
-    grouped_insights.insert(1, "Account", insights["Account"])
-    for col in insights.select_dtypes(include=['object']).columns:
-        if col not in grouped_insights.columns:
-            grouped_insights[col] = None
+    grouped_insights = insights.groupby("Account ID")
+    grouped_insights = grouped_insights.agg({
+        "Platform": "first",   # Mantém o primeiro valor de Platform (Mesmo para todas as linhas)
+        "Account": "first",    # Mantém o primeiro valor de Account (Mesmo para as linhas)
+        # Fazendo a soma das colunas numéricas
+        **{col: "sum" for col in insights.select_dtypes(include="number").columns},
+    })
+    # Garantindo que colunas de texto que não foram agregadas estejam presentes mas com valor nulo
+    for col in grouped_insights.columns.difference(insights.columns):
+        if col == "Account ID":
+            # Exceção para a coluna de ID da conta que já existe por ser o pivo do agrupamento
+            continue
+        grouped_insights[col] = None
+    grouped_insights = grouped_insights.reset_index()
     return generate_csv_response(grouped_insights)
 
 
