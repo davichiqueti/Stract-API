@@ -1,4 +1,4 @@
-# stract-challenge
+# stract-API
 
 Essa é uma etapa de um processo seletivo para desenvolvedor Python na Stract. Criando integrações com uma API da empresa e gerando relatórios em formato CSV com dados em tempo real. [Veja as instruções aqui](/instructions.txt)
 
