@@ -17,7 +17,9 @@ def generate_csv_response(data: pd.DataFrame):
     data.fillna('')
     return Response(
         data.to_csv(index=False),
-        content_type="text/csv; charset=utf-8"
+        # Definindo o countéudo como texto para que o CSV seja apresentado no navegador
+        # Ao invés de "text/csv" que faria com que o arquivo fosse baixado em navegadores padrão
+        content_type="text/plain; charset=utf-8"
     )
 
 
@@ -131,7 +133,11 @@ def general_platforms_ads_summarize():
         platform_insights = get_platform_insights(platform_id, platform_name)
         insights = pd.concat([insights, platform_insights], axis=0)
     # Agrupando por plataforma
-    grouped_insights = insights.groupby("Platform").sum(numeric_only=True).reset_index()
+    grouped_insights = insights.groupby("Platform")
+    # Somando os valores e tirando o índice de plataforma criado no agrupamento.
+    # Usando "min_count", quando uma plataforma não tem uma coluna númerica, seu valor é nulo ao inves de 0.
+    grouped_insights = grouped_insights.sum(numeric_only=True, min_count=1).reset_index()
+    # Garantindo que colunas de texto estejam presentes, porém com valor nulo
     for col in insights.select_dtypes(include=['object']).columns:
         if col not in grouped_insights.columns:
             grouped_insights[col] = None
